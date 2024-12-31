@@ -39,7 +39,7 @@ class DbInstances
         it.vpc_security_groups,
         it.ca_certificate_identifier,
         it.db_parameter_groups,
-        #idx.even? ? 'oldlace' : 'white'
+        idx.even? ? 'oldlace' : 'white'
       )
     end
   end
@@ -55,7 +55,7 @@ class DbInstances
         it.status,
         it.availability_zone,
         it.snapshot_type,
-        #idx.even? ? 'oldlace' : 'white'
+        idx.even? ? 'oldlace' : 'white'
       )
     end
   end
