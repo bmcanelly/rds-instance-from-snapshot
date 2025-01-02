@@ -1,0 +1,32 @@
+AllCops:
+  NewCops: enable
+  Exclude:
+    - Gemfile
+    - Guardfile
+    - Rakefile
+    - bin/*
+    - exe/*
+    - vendor/**/*
+  SuggestExtensions: false
+  TargetRubyVersion: 3.3
+
+require:
+  - rubocop-rspec
+
+Layout/HashAlignment:
+  EnforcedColonStyle:      table
+  EnforcedHashRocketStyle: table
+Layout/LineLength:
+  Max: 120
+Metrics:
+  Enabled: false
+Naming/AccessorMethodName:
+  Enabled: false
+Style/HashAsLastArrayItem:
+  Enabled: false
+Style/TrailingCommaInArguments:
+  Enabled: false
+Style/TrailingCommaInHashLiteral:
+  Enabled: false
+Lint/Void:
+  Enabled: false
