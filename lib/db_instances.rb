@@ -208,6 +208,18 @@ class DbInstances
               button('Restore') do
                 on_clicked do |_table, _row|
                   if valid?(new_db)
+                    client = Aws::RDS::Client.new(region: region)
+                    client.restore_db_instance_from_db_snapshot(
+                      db_instance_identifier: new_db.text,
+                      db_snapshot_identifier: snapshot.db_snapshot_identifier,
+                      multi_az: false,
+                      ca_certificate_identifier: database.ca_certificate_identifier,
+                      db_subnet_group_name: database.db_subnet_group.db_subnet_group_name,
+                      db_parameter_group_name: database.db_parameter_groups.first.db_parameter_group_name,
+                      vpc_security_group_ids: database.vpc_security_groups.select do |it|
+                        it.status == 'active'
+                      end.map(&:vpc_security_group_id)
+                    )
                     msg = "Request to restore snapshot '#{snapshot.db_snapshot_identifier}'" \
                           "as '#{new_db.text}' in region '#{region}' has been sent."
                     msg_box(msg)
