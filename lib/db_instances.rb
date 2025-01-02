@@ -8,6 +8,7 @@ require 'logger'
 require_relative 'rds_instance'
 require_relative 'rds_snapshot'
 
+# class DbInstances
 class DbInstances
   attr_accessor :client, :databases, :database, :region, :regions, :snapshots, :snapshot, :logger
 
@@ -46,7 +47,12 @@ class DbInstances
 
   def get_snapshots(db)
     client = Aws::RDS::Client.new(region: region)
-    client.describe_db_snapshots(db_instance_identifier: db).db_snapshots.sort_by(&:snapshot_create_time).reverse.each_with_index.map do |it, idx|
+    client.describe_db_snapshots(db_instance_identifier: db)
+          .db_snapshots
+          .sort_by(&:snapshot_create_time)
+          .reverse
+          .each_with_index
+          .map do |it, idx|
       snapshots << RdsSnapshot.new(
         it.db_snapshot_identifier,
         it.db_instance_identifier,
@@ -62,12 +68,36 @@ class DbInstances
 
   def clear_databases
     self.database = nil
-    self.databases.clear
+    databases.clear
   end
 
   def clear_snapshots
     self.snapshot = nil
-    self.snapshots.clear
+    snapshots.clear
+  end
+
+  def valid?(db)
+    valid = false
+
+    if snapshots.empty?
+      msg_box('No snapshots available to restore from. Choose a different DB instance or create a snapshot first')
+    elsif db.text.empty?
+      msg_box('Please enter a new DB name to restore to')
+    elsif !snapshot
+      msg_box('Please choose a snapshot')
+    elsif snapshot.status != 'available'
+      msg_box('Please choose a snapshot with a status of "available"')
+    elsif databases.collect(&:db_instance_identifier).include?(db.text)
+      msg_box("A database with the name '#{db.text}' already exists. Please choose a different name")
+    elsif db.text.length < 3 || db.text.length > 63
+      msg_box('DB name must be between 3 and 63 characters')
+    elsif db.text.match(/[^a-z0-9-]/)
+      msg_box('DB name must contain only lowercase letters, numbers, and hyphens')
+    else
+      valid = true
+    end
+
+    valid
   end
 
   def display
@@ -124,12 +154,12 @@ class DbInstances
             cell_rows <=> [
               self,
               :databases,
-              { column_attributes: {
-                'Name' => :db_instance_identifier,
-                'Status' => :db_instance_status,
-                'Storage' => :allocated_storage,
+              column_attributes: {
+                'Name'        => :db_instance_identifier,
+                'Status'      => :db_instance_status,
+                'Storage'     => :allocated_storage,
                 'Max Storage' => :max_allocated_storage
-              } }
+              }
             ]
 
             on_row_clicked do |_table, row|
@@ -158,10 +188,10 @@ class DbInstances
               cell_rows <=> [
                 self,
                 :snapshots,
-                { column_attributes: {
-                  'Name' => :db_snapshot_identifier,
+                column_attributes: {
+                  'Name'    => :db_snapshot_identifier,
                   'Created' => :snapshot_create_time
-                } }
+                }
               ]
               on_row_clicked do |_table, row|
                 self.snapshot = snapshots[row]
@@ -173,27 +203,11 @@ class DbInstances
               stretchy false
 
               label 'Enter the new db name to restore to:'
-              new_db = entry do
-                label 'New DB name'
-              end
+              new_db = entry { label 'New DB name' }
 
               button('Restore') do
                 on_clicked do |_table, _row|
-                  if snapshots.empty?
-                    msg_box('No snapshots available to restore from. Choose a different DB instance or create a snapshot first')
-                  elsif new_db.text.empty?
-                    msg_box('Please enter a new DB name to restore to')
-                  elsif !snapshot
-                    msg_box('Please choose a snapshot')
-                  elsif snapshot.status != 'available'
-                    msg_box('Please choose a snapshot with a status of "available"')
-                  elsif databases.collect(&:db_instance_identifier).include?(new_db.text)
-                    msg_box("A database with the name '#{new_db.text}' already exists. Please choose a different name")
-                  elsif new_db.text.length < 3 || new_db.text.length > 63
-                    msg_box('DB name must be between 3 and 63 characters')
-                  elsif new_db.text.match(/[^a-z0-9-]/)
-                    msg_box('DB name must contain only lowercase letters, numbers, and hyphens')
-                  else
+                  if valid?(new_db)
                     client = Aws::RDS::Client.new(region: region)
                     client.restore_db_instance_from_db_snapshot(
                       db_instance_identifier: new_db.text,
@@ -206,11 +220,11 @@ class DbInstances
                         it.status == 'active'
                       end.map(&:vpc_security_group_id)
                     )
-                    msg = "Request to restore snapshot '#{snapshot.db_snapshot_identifier}' as '#{new_db.text}' in region '#{region}' has been sent."
+                    msg = "Request to restore snapshot '#{snapshot.db_snapshot_identifier}'" \
+                          "as '#{new_db.text}' in region '#{region}' has been sent."
                     msg_box(msg)
                     logger.info(msg)
                     new_db.text = ''
-                    clear_snapshots
                   end
                 end
               end
