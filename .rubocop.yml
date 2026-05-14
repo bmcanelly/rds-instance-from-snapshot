@@ -2,7 +2,6 @@ AllCops:
   NewCops: enable
   Exclude:
     - Gemfile
-    - Guardfile
     - Rakefile
     - bin/*
     - exe/*
@@ -10,7 +9,7 @@ AllCops:
   SuggestExtensions: false
   TargetRubyVersion: 3.3
 
-require:
+plugins:
   - rubocop-rspec
 
 Layout/HashAlignment:
@@ -21,6 +20,8 @@ Layout/LineLength:
 Metrics:
   Enabled: false
 Naming/AccessorMethodName:
+  Enabled: false
+Style/Documentation:
   Enabled: false
 Style/HashAsLastArrayItem:
   Enabled: false

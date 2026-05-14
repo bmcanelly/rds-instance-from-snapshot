@@ -8,9 +8,9 @@ require 'logger'
 require_relative 'rds_instance'
 require_relative 'rds_snapshot'
 
-# class DbInstances
 class DbInstances
-  attr_accessor :client, :databases, :database, :region, :regions, :snapshots, :snapshot, :logger
+  attr_accessor :databases, :database, :region, :snapshots, :snapshot, :logger
+  attr_reader :regions
 
   include Glimmer
 
@@ -28,18 +28,18 @@ class DbInstances
 
   def get_rds_databases
     client = Aws::RDS::Client.new(region: region)
-    client.describe_db_instances.db_instances.each_with_index.map do |it, idx|
+    client.describe_db_instances.db_instances.each_with_index do |instance, idx|
       databases << RdsInstance.new(
-        it.db_instance_identifier,
-        it.db_instance_status,
-        it.multi_az,
-        it.allocated_storage,
-        it.max_allocated_storage,
-        it.endpoint,
-        it.db_subnet_group,
-        it.vpc_security_groups,
-        it.ca_certificate_identifier,
-        it.db_parameter_groups,
+        instance.db_instance_identifier,
+        instance.db_instance_status,
+        instance.multi_az,
+        instance.allocated_storage,
+        instance.max_allocated_storage,
+        instance.endpoint,
+        instance.db_subnet_group,
+        instance.vpc_security_groups,
+        instance.ca_certificate_identifier,
+        instance.db_parameter_groups,
         idx.even? ? 'oldlace' : 'white'
       )
     end
@@ -51,16 +51,15 @@ class DbInstances
           .db_snapshots
           .sort_by(&:snapshot_create_time)
           .reverse
-          .each_with_index
-          .map do |it, idx|
+          .each_with_index do |snap, idx|
       snapshots << RdsSnapshot.new(
-        it.db_snapshot_identifier,
-        it.db_instance_identifier,
-        it.snapshot_create_time,
-        it.allocated_storage,
-        it.status,
-        it.availability_zone,
-        it.snapshot_type,
+        snap.db_snapshot_identifier,
+        snap.db_instance_identifier,
+        snap.snapshot_create_time,
+        snap.allocated_storage,
+        snap.status,
+        snap.availability_zone,
+        snap.snapshot_type,
         idx.even? ? 'oldlace' : 'white'
       )
     end
@@ -206,18 +205,18 @@ class DbInstances
               new_db = entry { label 'New DB name' }
 
               button('Restore') do
-                on_clicked do |_table, _row|
+                on_clicked do
                   if valid?(new_db)
                     client = Aws::RDS::Client.new(region: region)
                     client.restore_db_instance_from_db_snapshot(
-                      db_instance_identifier: new_db.text,
-                      db_snapshot_identifier: snapshot.db_snapshot_identifier,
-                      multi_az: false,
+                      db_instance_identifier:    new_db.text,
+                      db_snapshot_identifier:    snapshot.db_snapshot_identifier,
+                      multi_az:                  false,
                       ca_certificate_identifier: database.ca_certificate_identifier,
-                      db_subnet_group_name: database.db_subnet_group.db_subnet_group_name,
-                      db_parameter_group_name: database.db_parameter_groups.first.db_parameter_group_name,
-                      vpc_security_group_ids: database.vpc_security_groups.select do |it|
-                        it.status == 'active'
+                      db_subnet_group_name:      database.db_subnet_group.db_subnet_group_name,
+                      db_parameter_group_name:   database.db_parameter_groups.first.db_parameter_group_name,
+                      vpc_security_group_ids:    database.vpc_security_groups.select do |sg|
+                        sg.status == 'active'
                       end.map(&:vpc_security_group_id)
                     )
                     msg = "Request to restore snapshot '#{snapshot.db_snapshot_identifier}'" \
